@@ -1,0 +1,58 @@
+<launch>
+
+  <rosparam command="load" file="$(find abb_irb120_support)/config/joint_names_dual_arm.yaml" />
+  
+  <arg name="sim" default="true" />
+  <arg name="robot_ip" default="192.168.125.1" unless="$(arg sim)" />
+  <arg name="rviz" default="true" />
+  <!-- <arg name="controller" unless="$(arg sim)" default="J23" doc="Series of the controller (dx100, fs100)" /> -->
+
+  <!-- load the robot_description parameter before launching ROS-I nodes -->
+  <include file="$(find abb_irb120_moveit_config)/launch/planning_context.launch" >
+    <arg name="load_robot_description" value="true" />
+  </include>
+
+  <!-- run the robot simulator and action interface nodes -->
+  <group if="$(arg sim)">
+    <include file="$(find industrial_robot_simulator)/launch/robot_interface_simulator.launch">
+    </include>
+    <include file="$(find abb_irb120_moveit_config)/launch/fake_moveit_controller_manager.launch">
+    </include>
+    <!-- <param name="/use_sim_time" value="true"/> -->
+  </group>
+
+  <group unless="$(arg sim)">
+  <!-- run the "real robot" interface nodes -->
+  <!--   - this typically includes: robot_state, motion_interface, and joint_trajectory_action nodes -->
+  <!--   - replace these calls with appropriate robot-specific calls or launch files -->
+    <include file="$(find abb_driver)/launch/robot_interface.launch" >
+    <arg name="robot_ip" value="$(arg robot_ip)"/>
+    <!-- <arg name="controller" value="$(arg controller)"/> robot_interface_download_dual_arm -->
+    </include>
+    <include file="$(find abb_irb120_moveit_config)/launch/dual_arm_moveit_controller_manager.launch">
+    </include>
+  </group>
+
+  <!-- publish the robot state (tf transforms) -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <group if="$(arg sim)">
+    <include file="$(find abb_irb120_moveit_config)/launch/move_group.launch">
+      <arg name="publish_monitored_planning_scene" value="true" />
+      <arg name="fake_execution" value="true" />
+    </include>
+  </group>
+
+  <group unless="$(arg sim)">
+    <include file="$(find abb_irb120_moveit_config)/launch/move_group.launch">
+      <arg name="publish_monitored_planning_scene" value="true" />
+    </include>
+  </group>
+
+  <group if="$(arg rviz)">
+    <include file="$(find abb_irb120_moveit_config)/launch/moveit_rviz.launch">
+      <arg name="config" value="true"/>
+    </include>
+  </group>
+
+</launch>
